@@ -29,11 +29,11 @@ class Retrier:
     ):
         """
 
-        :param exceptions: Exception to be catch specifically
-        :param exception_return: return if exceptions are caught
-        :param other_exception_return: return if Exception, others than exceptions, are caught
-        :param retry: how many time to retry
-        :param countdown: retry interval
+        :param exceptions: Exception to be caught specifically
+        :param exception_return: return if the exceptions are caught
+        :param other_exception_return: return if Exception, others than the exceptions, are caught
+        :param retry: how many times to retry
+        :param countdown: retry interval, measure by second
         """
         self.exceptions = exceptions
         self.exception_return = exception_return
