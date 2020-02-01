@@ -17,7 +17,7 @@ from GenericUtils import utils_config
 import mysql.connector
 
 
-class retrier:
+class Retrier:
 
     def __init__(
             self,
@@ -46,7 +46,6 @@ class retrier:
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
-            print(f"locals: {locals()}")
             for retry_num in range(self.retry):
 
                 ## execute countdown
@@ -76,18 +75,18 @@ class retrier:
         return wrapped_function
 
 
-class RequestRetry(retrier):
+class RequestRetry(Retrier):
 
     def __init__(self, *args, **kwargs):
-        retrier.__init__(self, *args, **kwargs)
+        Retrier.__init__(self, *args, **kwargs)
         self.exceptions = http_exception
         self.countdown = 5
 
 
-class MysqlRetry(retrier):
+class MysqlRetry(Retrier):
 
     def __init__(self, *args, **kwargs):
-        retrier.__init__(self, *args, **kwargs)
+        Retrier.__init__(self, *args, **kwargs)
         self.exceptions = mysql_exception
         self.countdown = 30
 
@@ -103,7 +102,6 @@ class MysqlRetry(retrier):
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
-            print(f"locals: {locals()}")
             for retry_num in range(self.retry):
 
                 ## execute countdown
@@ -168,17 +166,19 @@ class MysqlRetry(retrier):
 
 
 if __name__ == '__main__':
-    @retrier(
-        exceptions=(KeyError,)
-    )
-    def test1(*args, **kwargs):
-        print("Starting test")
-        # raise KeyError
+    pass
 
+    # @Retrier(
+    #     exceptions=(KeyError,)
+    # )
+    # def test1(*args, **kwargs):
+    #     print("Starting test")
+    #     # raise KeyError
+    #
+    #
+    # test1(1, 2, a=3, b=4)
 
-    test1(1, 2, a=3, b=4)
-
-    # @retrier(
+    # @Retrier(
     #     exceptions=(KeyError,)
     # )
     # async def test2(*args, **kwargs):

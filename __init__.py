@@ -4,7 +4,7 @@
 # IDE: PyCharm
 
 from GenericUtils.utils.retry import (
-    retrier,
+    Retrier,
     RequestRetry,
     MysqlRetry,
 )
@@ -14,7 +14,7 @@ from GenericUtils.utils.redis_conn import redis_connection
 from GenericUtils.utils import user_agent
 
 __all__ = [
-    "retrier",
+    "Retrier",
     "RequestRetry",
     "MysqlRetry",
     "get_host_ip",
