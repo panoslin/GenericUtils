@@ -1,0 +1,4 @@
+aiohttp==3.5.4
+mysql-connector-python==8.0.18
+redis==3.4.0
+requests==2.22.0
