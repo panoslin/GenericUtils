@@ -4,31 +4,34 @@
 # IDE: PyCharm
 
 
-from aiohttp.client_exceptions import (ServerDisconnectedError,
-                                       ServerConnectionError,
+from aiohttp.client_exceptions import (ServerConnectionError,
                                        ClientOSError,
                                        ClientConnectorCertificateError,
-                                       ServerTimeoutError,
-                                       ContentTypeError,
-                                       ClientConnectorError,
-                                       ClientPayloadError)
+                                       ClientPayloadError
+                                       )
+from requests.exceptions import (
+    ConnectionError,
+    Timeout,
+)
 from mysql.connector.errors import (OperationalError,
                                     ProgrammingError,
                                     DatabaseError,
                                     InterfaceError)
 import asyncio
 
-http_exception = (ServerDisconnectedError,
-                  ServerConnectionError,
-                  asyncio.TimeoutError,
-                  ClientConnectorError,
-                  ClientPayloadError,
-                  ServerTimeoutError,
-                  # ContentTypeError,
-                  ClientConnectorCertificateError,
-                  ClientOSError)
+http_exception = (
+    asyncio.TimeoutError,
+    ServerConnectionError,
+    ClientPayloadError,
+    ClientConnectorCertificateError,
+    ClientOSError,
+    ConnectionError,
+    Timeout,
+)
 
-mysql_exception = (OperationalError,
-                   ProgrammingError,
-                   DatabaseError,
-                   InterfaceError)
+mysql_exception = (
+    OperationalError,
+    ProgrammingError,
+    DatabaseError,
+    InterfaceError
+)
