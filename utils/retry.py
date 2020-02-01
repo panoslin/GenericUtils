@@ -9,6 +9,12 @@ import inspect
 import asyncio
 import functools
 import time
+from GenericUtils.utils.exception import (
+    http_exception,
+    mysql_exception,
+)
+from GenericUtils import utils_config
+import mysql.connector
 
 
 class retrier:
@@ -40,10 +46,13 @@ class retrier:
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
+            print(f"locals: {locals()}")
             for retry_num in range(self.retry):
 
                 ## execute countdown
                 if retry_num > 0:
+                    print(f"Encounter Exception\n"
+                          f"Retrying in {self.countdown} seconds")
                     time.sleep(self.countdown)
 
                 ## execute the func
@@ -67,23 +76,123 @@ class retrier:
         return wrapped_function
 
 
-if __name__ == '__main__':
-    # @retrier(
-    #     exceptions=(KeyError,)
-    # )
-    # def test1(*args, **kwargs):
-    #     print("Starting test")
-    #     raise KeyError
-    #
-    #
-    # test1(1, 2, a=3, b=4)
+class RequestRetry(retrier):
 
+    def __init__(self, *args, **kwargs):
+        retrier.__init__(self, *args, **kwargs)
+        self.exceptions = http_exception
+        self.countdown = 5
+
+
+class MysqlRetry(retrier):
+
+    def __init__(self, *args, **kwargs):
+        retrier.__init__(self, *args, **kwargs)
+        self.exceptions = mysql_exception
+        self.countdown = 30
+
+        self.host = kwargs.get("host") if "host" in kwargs else utils_config.host,
+        self.port = kwargs.get("port") if "port" in kwargs else utils_config.port,
+        self.user_name = kwargs.get("user_name") if "user_name" in kwargs else utils_config.user_name,
+        self.password = kwargs.get("password") if "password" in kwargs else utils_config.password,
+        self.database = kwargs.get("database") if "database" in kwargs else utils_config.database,
+        self.charset = kwargs.get("charset") if "charset" in kwargs else "utf8",
+        self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True,
+
+    def __call__(self, func):
+
+        @functools.wraps(func)
+        def wrapped_function(*args, **kwargs):
+            print(f"locals: {locals()}")
+            for retry_num in range(self.retry):
+
+                ## execute countdown
+                if retry_num > 0:
+                    print(f"Encounter Exception\n"
+                          f"Retrying in {self.countdown} seconds")
+                    time.sleep(self.countdown)
+
+                ## execute the func
+                try:
+
+                    kwargs['conn'], kwargs['cur'] = self.connect()
+                    res = func(*args, **kwargs)
+                    kwargs['conn'].commit()
+                    kwargs['cur'].close()
+                    kwargs['conn'].close()
+                    return res
+                except self.exceptions:
+                    traceback.print_exc()
+                    kwargs['conn'].rollback()
+                    kwargs['cur'].close()
+                    kwargs['conn'].close()
+                    continue
+                except:
+                    traceback.print_exc()
+                    kwargs['conn'].rollback()
+                    kwargs['cur'].close()
+                    kwargs['conn'].close()
+                    return self.other_exception_return
+            else:
+                ## end of retry
+                ## return exception_return
+                return self.exception_return
+
+        return wrapped_function
+
+    def connect(self):
+        # Construct MySQL connect
+        conn = mysql.connector.connect(
+            user=self.user_name,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.database,
+            charset=self.charset,
+        )
+        cur = conn.cursor(dictionary=self.dictionary)
+        return conn, cur
+
+    @staticmethod
+    def close(conn, cur):
+        cur.close()
+        conn.close()
+
+    @staticmethod
+    def commit(conn):
+        conn.commit()
+
+    @staticmethod
+    def rollback(conn):
+        conn.rollback()
+
+
+if __name__ == '__main__':
     @retrier(
         exceptions=(KeyError,)
     )
-    async def test2(*args, **kwargs):
+    def test1(*args, **kwargs):
         print("Starting test")
-        raise KeyError
+        # raise KeyError
 
 
-    test2(1, 2, a=3, b=4)
+    test1(1, 2, a=3, b=4)
+
+    # @retrier(
+    #     exceptions=(KeyError,)
+    # )
+    # async def test2(*args, **kwargs):
+    #     print("Starting test")
+    #     raise KeyError
+    #
+    # test2(1, 2, a=3, b=4)
+
+    # from aiohttp.client_exceptions import ServerDisconnectedError
+    #
+    # @RequestRetry()
+    # async def test3(*args, **kwargs):
+    #     print("Starting test")
+    #     raise ServerDisconnectedError
+    #
+    #
+    # test3(1, 2, a=3, b=4)

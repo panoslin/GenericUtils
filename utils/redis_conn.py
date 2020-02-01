@@ -4,14 +4,14 @@
 # IDE: PyCharm
 
 import redis
-import config
+import utils_config
 
 
-def redis_connection(host=config.redis_host,
-                     port=config.redis_port,
-                     password=config.redis_auth,
-                     db=config.redis_db,
-                     decode_responses=True):
+def redis_connection(host=utils_config.redis_host,
+                     port=utils_config.redis_port,
+                     password=utils_config.redis_auth,
+                     db=utils_config.redis_db,
+                     decode_responses=utils_config.redis_decode_responses):
     return redis.Redis(host=host,
                        port=port,
                        password=password,
