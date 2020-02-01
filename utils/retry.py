@@ -5,92 +5,68 @@
 
 
 import traceback
-import wrapt
+import inspect
+import asyncio
 import functools
-# import inspect
-# import asyncio
 
 
-def retrier(wrapped=None,
+class retrier:
+
+    def __init__(
+            self,
             exceptions=(Exception,),
             exception_return=False,
             other_exception_return=False,
             retry=3,
-            ):
-    if wrapped is None:
-        return functools.partial(retrier,
-                                 exceptions=exceptions,
-                                 exception_return=exception_return,
-                                 other_exception_return=other_exception_return,
-                                 retry=retry,
-                                 )
+    ):
+        self.exceptions = exceptions
+        self.exception_return = exception_return
+        self.other_exception_return = other_exception_return
+        self.retry = retry
 
-    @wrapt.decorator
-    def wrapper(func, instance, args, kwargs):
+    def __call__(self, func):
+        iscoroutinefunction = inspect.iscoroutinefunction(func)
 
-        # iscoroutinefunction = inspect.iscoroutinefunction(func)
-
-        for _ in range(retry):
-            try:
-                # if iscoroutinefunction:
-                #     loop = asyncio.new_event_loop()
-                #     asyncio.set_event_loop(loop)
-                #     res = loop.run_until_complete(func(*args, **kwargs))
-                #     loop.close()
-                # else:
-                res = func(*args, **kwargs)
-            except exceptions:
-                traceback.print_exc()
-                continue
-            except:
-                traceback.print_exc()
-                return other_exception_return
+        @functools.wraps(func)
+        def wrapped_function(*args, **kwargs):
+            print(f"locals(): {locals()}")
+            for _ in range(self.retry):
+                try:
+                    if iscoroutinefunction:
+                        res = asyncio.run(func(*args, **kwargs))
+                    else:
+                        res = func(*args, **kwargs)
+                    return res
+                except self.exceptions:
+                    traceback.print_exc()
+                    continue
+                except:
+                    traceback.print_exc()
+                    return self.other_exception_return
             else:
-                return res
-        else:
-            return exception_return
+                return self.exception_return
 
-    return wrapper(wrapped)
+        return wrapped_function
 
 
-def async_retrier(wrapped=None,
-                  exceptions=(Exception,),
-                  exception_return=False,
-                  other_exception_return=False,
-                  retry=3,
-                  ):
-    if wrapped is None:
-        return functools.partial(async_retrier,
-                                 exceptions=exceptions,
-                                 exception_return=exception_return,
-                                 other_exception_return=other_exception_return,
-                                 retry=retry,
-                                 )
+if __name__ == '__main__':
+    # @retrier(
+    #     exceptions=(KeyError,)
+    # )
+    # def test1(*args, **kwargs):
+    #     print("Starting test")
+    #     raise KeyError
+    #
+    #
+    # test1(1, 2, a=3, b=4)
 
-    @wrapt.decorator
-    async def wrapper(func, instance, args, kwargs):
+    @retrier(
+        exceptions=(KeyError,)
+    )
+    async def test2(*args, **kwargs):
+        print("Starting test")
+        raise KeyError
 
-        # iscoroutinefunction = inspect.iscoroutinefunction(func)
 
-        for _ in range(retry):
-            try:
-                res = await func(*args, **kwargs)
-                # if iscoroutinefunction:
-                #     loop = asyncio.new_event_loop()
-                #     asyncio.set_event_loop(loop)
-                #     res = loop.run_until_complete(func(*args, **kwargs))
-                #     loop.close()
-                # else:
-                #     res = func(*args, **kwargs)
-            except exceptions:
-                traceback.print_exc()
-                continue
-            except:
-                traceback.print_exc()
-                return other_exception_return
-            else:
-                return res
-        else:
-            return exception_return
-
-    return wrapper(wrapped)
+    test2(1, 2, a=3, b=4)
+    print(test2.__name__)

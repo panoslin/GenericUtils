@@ -3,8 +3,8 @@
 # Created by panos on 2020/2/1
 # IDE: PyCharm
 
-from GenericUtils.utils import *
+from GenericUtils.utils.retry import retrier
 
 __all__ = [
-
+    "retrier"
 ]
