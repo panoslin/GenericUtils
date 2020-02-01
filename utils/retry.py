@@ -8,6 +8,7 @@ import traceback
 import inspect
 import asyncio
 import functools
+import time
 
 
 class retrier:
@@ -18,19 +19,34 @@ class retrier:
             exception_return=False,
             other_exception_return=False,
             retry=3,
+            countdown=0,
     ):
+        """
+
+        :param exceptions: Exception to be catch specifically
+        :param exception_return: return if exceptions are caught
+        :param other_exception_return: return if Exception, others than exceptions, are caught
+        :param retry: how many time to retry
+        :param countdown: retry interval
+        """
         self.exceptions = exceptions
         self.exception_return = exception_return
         self.other_exception_return = other_exception_return
         self.retry = retry
+        self.countdown = countdown
 
     def __call__(self, func):
         iscoroutinefunction = inspect.iscoroutinefunction(func)
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
-            print(f"locals(): {locals()}")
-            for _ in range(self.retry):
+            for retry_num in range(self.retry):
+
+                ## execute countdown
+                if retry_num > 0:
+                    time.sleep(self.countdown)
+
+                ## execute the func
                 try:
                     if iscoroutinefunction:
                         res = asyncio.run(func(*args, **kwargs))
@@ -44,6 +60,8 @@ class retrier:
                     traceback.print_exc()
                     return self.other_exception_return
             else:
+                ## end of retry
+                ## return exception_return
                 return self.exception_return
 
         return wrapped_function
@@ -69,4 +87,3 @@ if __name__ == '__main__':
 
 
     test2(1, 2, a=3, b=4)
-    print(test2.__name__)
