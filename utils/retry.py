@@ -26,6 +26,8 @@ class Retrier:
             other_exception_return=False,
             retry=3,
             countdown=0,
+            *args,
+            **kwargs
     ):
         """
 
@@ -50,8 +52,7 @@ class Retrier:
 
                 ## execute countdown
                 if retry_num > 0:
-                    print(f"Encounter Exception\n"
-                          f"Retrying in {self.countdown} seconds")
+                    print(f"Encounter Exception Retrying in {self.countdown} seconds")
                     time.sleep(self.countdown)
 
                 ## execute the func
@@ -90,13 +91,13 @@ class MysqlRetry(Retrier):
         self.exceptions = mysql_exception
         self.countdown = 30
 
-        self.host = kwargs.get("host") if "host" in kwargs else utils_config.host,
-        self.port = kwargs.get("port") if "port" in kwargs else utils_config.port,
-        self.user_name = kwargs.get("user_name") if "user_name" in kwargs else utils_config.user_name,
-        self.password = kwargs.get("password") if "password" in kwargs else utils_config.password,
-        self.database = kwargs.get("database") if "database" in kwargs else utils_config.database,
-        self.charset = kwargs.get("charset") if "charset" in kwargs else "utf8",
-        self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True,
+        self.host = kwargs.get("host") if "host" in kwargs else utils_config.host
+        self.port = kwargs.get("port") if "port" in kwargs else utils_config.port
+        self.user_name = kwargs.get("user_name") if "user_name" in kwargs else utils_config.user_name
+        self.password = kwargs.get("password") if "password" in kwargs else utils_config.password
+        self.database = kwargs.get("database") if "database" in kwargs else utils_config.database
+        self.charset = kwargs.get("charset") if "charset" in kwargs else "utf8"
+        self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True
 
     def __call__(self, func):
 
@@ -106,8 +107,7 @@ class MysqlRetry(Retrier):
 
                 ## execute countdown
                 if retry_num > 0:
-                    print(f"Encounter Exception\n"
-                          f"Retrying in {self.countdown} seconds")
+                    print(f"Encounter Exception Retrying in {self.countdown} seconds")
                     time.sleep(self.countdown)
 
                 ## execute the func
