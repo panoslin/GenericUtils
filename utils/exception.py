@@ -14,8 +14,6 @@ from requests.exceptions import (
     Timeout,
 )
 from mysql.connector.errors import (OperationalError,
-                                    ProgrammingError,
-                                    DatabaseError,
                                     InterfaceError)
 import asyncio
 
@@ -31,7 +29,5 @@ http_exception = (
 
 mysql_exception = (
     OperationalError,
-    ProgrammingError,
-    DatabaseError,
     InterfaceError
 )
