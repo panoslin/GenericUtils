@@ -4,7 +4,7 @@
 # IDE: PyCharm
 
 import redis
-import utils_config
+from GenericUtils import utils_config
 
 
 def redis_connection(host=utils_config.redis_host,
