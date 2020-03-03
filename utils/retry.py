@@ -100,6 +100,7 @@ class MysqlRetry(Retrier):
         self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True
 
     def __call__(self, func):
+        iscoroutinefunction = inspect.iscoroutinefunction(func)
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
@@ -112,24 +113,28 @@ class MysqlRetry(Retrier):
 
                 ## execute the func
                 try:
-
                     kwargs['conn'], kwargs['cur'] = self.connect()
-                    res = func(*args, **kwargs)
+                    if iscoroutinefunction:
+                        res = asyncio.run(func(*args, **kwargs))
+                    else:
+                        res = func(*args, **kwargs)
                     kwargs['conn'].commit()
                     kwargs['cur'].close()
                     kwargs['conn'].close()
                     return res
                 except self.exceptions:
                     traceback.print_exc()
-                    kwargs['conn'].rollback()
-                    kwargs['cur'].close()
-                    kwargs['conn'].close()
+                    if 'conn' in kwargs:
+                        kwargs['conn'].rollback()
+                        kwargs['cur'].close()
+                        kwargs['conn'].close()
                     continue
                 except:
                     traceback.print_exc()
-                    kwargs['conn'].rollback()
-                    kwargs['cur'].close()
-                    kwargs['conn'].close()
+                    if 'conn' in kwargs:
+                        kwargs['conn'].rollback()
+                        kwargs['cur'].close()
+                        kwargs['conn'].close()
                     return self.other_exception_return
             else:
                 ## end of retry
