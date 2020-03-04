@@ -7,7 +7,8 @@
 from aiohttp.client_exceptions import (ServerConnectionError,
                                        ClientOSError,
                                        ClientConnectorCertificateError,
-                                       ClientPayloadError
+                                       ClientPayloadError,
+                                       ClientConnectorError
                                        )
 from requests.exceptions import (
     ConnectionError,
@@ -25,6 +26,7 @@ http_exception = (
     ClientOSError,
     ConnectionError,
     Timeout,
+    ClientConnectorError,
 )
 
 mysql_exception = (
