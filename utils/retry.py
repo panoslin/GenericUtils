@@ -60,7 +60,6 @@ class Retrier:
                     if iscoroutinefunction:
                         loop = asyncio.get_event_loop()
                         res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
-                        # res = asyncio.run()
                     else:
                         res = func(*args, **kwargs)
                     return res
@@ -117,7 +116,8 @@ class MysqlRetry(Retrier):
                 try:
                     kwargs['conn'], kwargs['cur'] = self.connect()
                     if iscoroutinefunction:
-                        res = asyncio.run(func(*args, **kwargs))
+                        loop = asyncio.get_event_loop()
+                        res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
                     else:
                         res = func(*args, **kwargs)
                     kwargs['conn'].commit()
