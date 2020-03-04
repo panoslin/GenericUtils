@@ -58,7 +58,9 @@ class Retrier:
                 ## execute the func
                 try:
                     if iscoroutinefunction:
-                        res = asyncio.run(func(*args, **kwargs))
+                        loop = asyncio.get_event_loop()
+                        res = loop.run_until_complete(func(*args, **kwargs))
+                        # res = asyncio.run()
                     else:
                         res = func(*args, **kwargs)
                     return res
