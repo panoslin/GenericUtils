@@ -154,6 +154,7 @@ class MysqlRetry(Retrier):
             port=self.port,
             database=self.database,
             charset=self.charset,
+            use_pure=True,
         )
         cur = conn.cursor(dictionary=self.dictionary)
         return conn, cur
