@@ -21,6 +21,7 @@ class Retrier:
 
     def __init__(
             self,
+            func=None,
             exceptions=(Exception,),
             exception_return=False,
             other_exception_return=False,
@@ -37,13 +38,15 @@ class Retrier:
         :param retry: how many times to retry
         :param countdown: retry interval, measure by second
         """
+        self.func = func
         self.exceptions = exceptions
         self.exception_return = exception_return
         self.other_exception_return = other_exception_return
         self.retry = retry
         self.countdown = countdown
 
-    def __call__(self, func):
+    def __call__(self, *call_args, **call_kwargs):
+        func = self.func if self.func else call_args[0]
         iscoroutinefunction = inspect.iscoroutinefunction(func)
 
         @functools.wraps(func)
@@ -59,7 +62,8 @@ class Retrier:
                 try:
                     if iscoroutinefunction:
                         loop = asyncio.get_event_loop()
-                        res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
+                        res = loop.run_until_complete(func(*args, **kwargs))
+                        # res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
                     else:
                         res = func(*args, **kwargs)
                     return res
@@ -74,7 +78,7 @@ class Retrier:
                 ## return exception_return
                 return self.exception_return
 
-        return wrapped_function
+        return wrapped_function() if self.func else wrapped_function
 
 
 class RequestRetry(Retrier):
@@ -100,7 +104,8 @@ class MysqlRetry(Retrier):
         self.charset = kwargs.get("charset") if "charset" in kwargs else "utf8"
         self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True
 
-    def __call__(self, func):
+    def __call__(self, *call_args, **call_kwargs):
+        func = self.func if self.func else call_args[0]
         iscoroutinefunction = inspect.iscoroutinefunction(func)
 
         @functools.wraps(func)
@@ -117,7 +122,8 @@ class MysqlRetry(Retrier):
                     kwargs['conn'], kwargs['cur'] = self.connect()
                     if iscoroutinefunction:
                         loop = asyncio.get_event_loop()
-                        res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
+                        res = loop.run_until_complete(func(*args, **kwargs))
+                        # res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
                     else:
                         res = func(*args, **kwargs)
                     kwargs['conn'].commit()
@@ -143,7 +149,7 @@ class MysqlRetry(Retrier):
                 ## return exception_return
                 return self.exception_return
 
-        return wrapped_function
+        return wrapped_function() if self.func else wrapped_function
 
     def connect(self):
         # Construct MySQL connect
@@ -175,10 +181,11 @@ class MysqlRetry(Retrier):
 
 if __name__ == '__main__':
     pass
-
+    #
     # @Retrier(
     #     exceptions=(KeyError,)
     # )
+    # @Retrier
     # def test1(*args, **kwargs):
     #     print("Starting test")
     #     # raise KeyError
@@ -197,7 +204,10 @@ if __name__ == '__main__':
 
     # from aiohttp.client_exceptions import ServerDisconnectedError
     #
-    # @RequestRetry()
+    # # @RequestRetry(
+    # #     countdown=2
+    # # )
+    # @RequestRetry
     # async def test3(*args, **kwargs):
     #     print("Starting test")
     #     raise ServerDisconnectedError
