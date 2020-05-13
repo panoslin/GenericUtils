@@ -18,6 +18,16 @@ def pager(cursor, offset, step=10):
         yield page
 
 
+def roller(iterable, interval=10):
+    page = 0
+    while True:
+        a, b = page * interval, page * interval + interval
+        page += 1
+        if b > len(iterable):
+            break
+        else:
+            yield iterable[a: b]
+
 if __name__ == '__main__':
     for _ in pager(5, 61, 20):
         print(_)
