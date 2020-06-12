@@ -16,6 +16,30 @@ from GenericUtils.utils.exception import (
 from GenericUtils import utils_config
 import mysql.connector
 
+"""
+verbose:
+    1: NO LOG
+    2: NO traceback for ALL `exceptions`
+    3: NO traceback for `exceptions`
+    4: ALL
+"""
+LOG_LEVEL = {
+    "NO LOG": 1,
+    "NO traceback": 2,
+    "NO exceptions": 3,
+    "ALL": 4,
+}
+
+
+def log(level, funcname, benchmark, exception):
+    if level >= benchmark:
+        traceback.print_exc()
+        print(f"Encounter Exception: while operating func {funcname}: {exception}")
+    elif level > LOG_LEVEL["NO LOG"]:
+        print(f"Encounter Exception: while operating func {funcname}: {exception}")
+    elif level == LOG_LEVEL["NO LOG"]:
+        pass
+
 
 class Retrier:
 
@@ -27,6 +51,7 @@ class Retrier:
             other_exception_return=False,
             retry=3,
             countdown=0,
+            verbose=4,
             *args,
             **kwargs
     ):
@@ -44,6 +69,7 @@ class Retrier:
         self.other_exception_return = other_exception_return
         self.retry = retry
         self.countdown = countdown
+        self.verbose = verbose
 
     def __call__(self, *call_args, **call_kwargs):
         func = self.func if self.func else call_args[0]
@@ -67,15 +93,25 @@ class Retrier:
                     else:
                         res = func(*args, **kwargs)
                     return res
-                except self.exceptions:
-                    traceback.print_exc()
+                except self.exceptions as e:
+                    log(
+                        level=self.verbose,
+                        funcname=func.__name__,
+                        benchmark=LOG_LEVEL["ALL"],
+                        exception=e
+                    )
                     continue
-                except:
-                    traceback.print_exc()
+                except Exception as e:
+                    log(
+                        level=self.verbose,
+                        funcname=func.__name__,
+                        benchmark=LOG_LEVEL["NO exceptions"],
+                        exception=e
+                    )
                     return self.other_exception_return
             else:
                 ## end of retry
-                ## return exception_return
+                print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
                 return self.exception_return
 
         return wrapped_function() if self.func else wrapped_function
@@ -130,15 +166,25 @@ class MysqlRetry(Retrier):
                     kwargs['cur'].close()
                     kwargs['conn'].close()
                     return res
-                except self.exceptions:
-                    traceback.print_exc()
+                except self.exceptions as e:
+                    log(
+                        level=self.verbose,
+                        funcname=func.__name__,
+                        benchmark=LOG_LEVEL["ALL"],
+                        exception=e
+                    )
                     if 'conn' in kwargs:
                         kwargs['conn'].rollback()
                         kwargs['cur'].close()
                         kwargs['conn'].close()
                     continue
-                except:
-                    traceback.print_exc()
+                except Exception as e:
+                    log(
+                        level=self.verbose,
+                        funcname=func.__name__,
+                        benchmark=LOG_LEVEL["NO exceptions"],
+                        exception=e
+                    )
                     if 'conn' in kwargs:
                         kwargs['conn'].rollback()
                         kwargs['cur'].close()
@@ -146,7 +192,7 @@ class MysqlRetry(Retrier):
                     return self.other_exception_return
             else:
                 ## end of retry
-                ## return exception_return
+                print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
                 return self.exception_return
 
         return wrapped_function() if self.func else wrapped_function
@@ -182,16 +228,17 @@ class MysqlRetry(Retrier):
 if __name__ == '__main__':
     pass
     #
-    # @Retrier(
-    #     exceptions=(KeyError,)
-    # )
+    @Retrier(
+        exceptions=(KeyError,),
+        verbose=3
+    )
     # @Retrier
-    # def test1(*args, **kwargs):
-    #     print("Starting test")
-    #     # raise KeyError
-    #
-    #
-    # test1(1, 2, a=3, b=4)
+    def test1(*args, **kwargs):
+        print("Starting test")
+        raise KeyError
+
+
+    test1(1, 2, a=3, b=4)
 
     # @Retrier(
     #     exceptions=(KeyError,)
