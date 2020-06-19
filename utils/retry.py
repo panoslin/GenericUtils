@@ -88,10 +88,14 @@ class Retrier:
                 try:
                     if iscoroutinefunction:
                         loop = asyncio.get_event_loop()
-                        res = loop.run_until_complete(func(*args, **kwargs))
+                        res = loop.run_until_complete(func(*call_args, **call_kwargs)) \
+                            if self.func \
+                            else loop.run_until_complete(func(*args, **kwargs))
                         # res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
                     else:
-                        res = func(*args, **kwargs)
+                        res = func(*call_args, **call_kwargs) \
+                            if self.func \
+                            else func(*args, **kwargs)
                     return res
                 except self.exceptions as e:
                     log(
@@ -227,25 +231,27 @@ class MysqlRetry(Retrier):
 
 if __name__ == '__main__':
     pass
-    #
-    @Retrier(
-        exceptions=(KeyError,),
-        verbose=3
-    )
-    # @Retrier
-    def test1(*args, **kwargs):
-        print("Starting test")
-        raise KeyError
+
+    # @Retrier(
+    #     exceptions=(KeyError,),
+    #     verbose=3
+    # )
+    # # @Retrier
+    # def test1(*args, **kwargs):
+    #     print("Starting test")
+    #     print(locals())
+    #     raise KeyError
+    # test1(1, 2, a=3, b=4)
 
 
-    test1(1, 2, a=3, b=4)
 
     # @Retrier(
     #     exceptions=(KeyError,)
     # )
     # async def test2(*args, **kwargs):
     #     print("Starting test")
-    #     raise KeyError
+    #     print(locals())
+    #     # raise KeyError
     #
     # test2(1, 2, a=3, b=4)
 
@@ -257,7 +263,8 @@ if __name__ == '__main__':
     # @RequestRetry
     # async def test3(*args, **kwargs):
     #     print("Starting test")
-    #     raise ServerDisconnectedError
+    #     print(locals())
+    #     # raise ServerDisconnectedError
     #
     #
     # test3(1, 2, a=3, b=4)
