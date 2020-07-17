@@ -88,10 +88,12 @@ class Retrier:
                 try:
                     if iscoroutinefunction:
                         loop = asyncio.get_event_loop()
-                        res = loop.run_until_complete(func(*call_args, **call_kwargs)) \
-                            if self.func \
-                            else loop.run_until_complete(func(*args, **kwargs))
-                        # res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
+                        if loop.is_running():
+                            res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
+                        else:
+                            res = loop.run_until_complete(func(*call_args, **call_kwargs)) \
+                                if self.func \
+                                else loop.run_until_complete(func(*args, **kwargs))
                     else:
                         res = func(*call_args, **call_kwargs) \
                             if self.func \
