@@ -12,6 +12,7 @@ from GenericUtils.utils.ip_address import get_host_ip
 from GenericUtils.utils.paging import pager
 from GenericUtils.utils.redis_conn import redis_connection
 from GenericUtils.utils import user_agent
+from GenericUtils.utils.roller import roller
 
 __all__ = [
     "Retrier",
@@ -21,4 +22,5 @@ __all__ = [
     "pager",
     "redis_connection",
     "user_agent",
+    "roller",
 ]
