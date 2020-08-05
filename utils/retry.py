@@ -166,8 +166,6 @@ class MysqlRetry(Retrier):
                         loop = asyncio.get_event_loop()
                         if loop.is_running():
                             res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
-                            for ele in res.__await__():
-                                res = ele
                         else:
                             res = loop.run_until_complete(func(*call_args, **call_kwargs)) \
                                 if self.func \
