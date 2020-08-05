@@ -71,6 +71,61 @@ class Retrier:
         self.countdown = countdown
         self.verbose = verbose
 
+    def __enter__(
+            self,
+            exceptions=(Exception,),
+            exception_return=False,
+            other_exception_return=False,
+            retry=3,
+            countdown=0,
+            verbose=4,
+            *args,
+            **kwargs):
+
+        self.exceptions = exceptions
+        self.exception_return = exception_return
+        self.other_exception_return = other_exception_return
+        self.retry = retry
+        self.countdown = countdown
+        self.verbose = verbose
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_val:
+            for exc in self.exceptions:
+                pass
+            else:
+                return
+        print(traceback.format_exc())
+        # for retry_num in range(self.retry):
+        #     ## execute countdown
+        #     if retry_num > 0:
+        #         print(f"Encounter Exception Retrying in {self.countdown} seconds")
+        #         time.sleep(self.countdown)
+        #
+        #     ## execute the func
+        #     try:
+        #         res = func(*call_args, **call_kwargs) \
+        #             if self.func \
+        #             else func(*args, **kwargs)
+        #         return res
+        #     except self.exceptions as e:
+        #         log(
+        #             level=self.verbose,
+        #             funcname=func.__name__,
+        #             benchmark=LOG_LEVEL["ALL"],
+        #             exception=e
+        #         )
+        #         continue
+        #     except Exception as e:
+        #         log(
+        #             level=self.verbose,
+        #             funcname=func.__name__,
+        #             benchmark=LOG_LEVEL["NO exceptions"],
+        #             exception=e
+        #         )
+        #         return self.other_exception_return
+
     def __call__(self, *call_args, **call_kwargs):
         func = self.func if self.func else call_args[0]
         iscoroutinefunction = inspect.iscoroutinefunction(func)
@@ -250,8 +305,6 @@ if __name__ == '__main__':
     #     raise KeyError
     # test1(1, 2, a=3, b=4)
 
-
-
     # @Retrier(
     #     exceptions=(KeyError,)
     # )
@@ -275,3 +328,7 @@ if __name__ == '__main__':
     #
     #
     # test3(1, 2, a=3, b=4)
+
+    with Retrier(exceptions=(KeyError,), ) as arya:
+        print("Starting test")
+        raise KeyError
