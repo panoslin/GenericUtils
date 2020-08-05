@@ -164,7 +164,12 @@ class MysqlRetry(Retrier):
                     kwargs['conn'], kwargs['cur'] = self.connect()
                     if iscoroutinefunction:
                         loop = asyncio.get_event_loop()
-                        res = loop.run_until_complete(func(*args, **kwargs))
+                        if loop.is_running():
+                            res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
+                        else:
+                            res = loop.run_until_complete(func(*call_args, **call_kwargs)) \
+                                if self.func \
+                                else loop.run_until_complete(func(*args, **kwargs))
                         # res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
                     else:
                         res = func(*args, **kwargs)
