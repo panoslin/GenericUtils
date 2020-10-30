@@ -9,6 +9,7 @@ import inspect
 import asyncio
 import functools
 import time
+from GenericUtils.base.base_decorator import BaseDecorator
 from GenericUtils.utils.exception import (
     http_exception,
     mysql_exception,
@@ -41,8 +42,16 @@ def log(level, funcname, benchmark, exception):
         pass
 
 
-class Retrier:
-
+class Retrier(BaseDecorator):
+    __slots__ = (
+        'func',
+        'exceptions',
+        'exception_return',
+        'other_exception_return',
+        'retry',
+        'countdown',
+        'verbose',
+    )
     def __init__(
             self,
             func=None,
@@ -63,6 +72,7 @@ class Retrier:
         :param retry: how many times to retry
         :param countdown: retry interval, measure by second
         """
+        super().__init__()
         self.func = func
         self.exceptions = exceptions
         self.exception_return = exception_return
@@ -71,64 +81,8 @@ class Retrier:
         self.countdown = countdown
         self.verbose = verbose
 
-    def __enter__(
-            self,
-            exceptions=(Exception,),
-            exception_return=False,
-            other_exception_return=False,
-            retry=3,
-            countdown=0,
-            verbose=4,
-            *args,
-            **kwargs):
-
-        self.exceptions = exceptions
-        self.exception_return = exception_return
-        self.other_exception_return = other_exception_return
-        self.retry = retry
-        self.countdown = countdown
-        self.verbose = verbose
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_val:
-            for exc in self.exceptions:
-                pass
-            else:
-                return
-        print(traceback.format_exc())
-        # for retry_num in range(self.retry):
-        #     ## execute countdown
-        #     if retry_num > 0:
-        #         print(f"Encounter Exception Retrying in {self.countdown} seconds")
-        #         time.sleep(self.countdown)
-        #
-        #     ## execute the func
-        #     try:
-        #         res = func(*call_args, **call_kwargs) \
-        #             if self.func \
-        #             else func(*args, **kwargs)
-        #         return res
-        #     except self.exceptions as e:
-        #         log(
-        #             level=self.verbose,
-        #             funcname=func.__name__,
-        #             benchmark=LOG_LEVEL["ALL"],
-        #             exception=e
-        #         )
-        #         continue
-        #     except Exception as e:
-        #         log(
-        #             level=self.verbose,
-        #             funcname=func.__name__,
-        #             benchmark=LOG_LEVEL["NO exceptions"],
-        #             exception=e
-        #         )
-        #         return self.other_exception_return
-
     def __call__(self, *call_args, **call_kwargs):
         func = self.func if self.func else call_args[0]
-        iscoroutinefunction = inspect.iscoroutinefunction(func)
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
@@ -141,18 +95,10 @@ class Retrier:
 
                 ## execute the func
                 try:
-                    if iscoroutinefunction:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
-                        else:
-                            res = loop.run_until_complete(func(*call_args, **call_kwargs)) \
-                                if self.func \
-                                else loop.run_until_complete(func(*args, **kwargs))
+                    if self.func:
+                        res = self.call_func(func, *call_args, **call_kwargs)
                     else:
-                        res = func(*call_args, **call_kwargs) \
-                            if self.func \
-                            else func(*args, **kwargs)
+                        res = self.call_func(func, *args, **kwargs)
                     return res
                 except self.exceptions as e:
                     log(
@@ -179,14 +125,25 @@ class Retrier:
 
 
 class RequestRetry(Retrier):
+    __slots__ = ()
 
     def __init__(self, *args, **kwargs):
         Retrier.__init__(self, *args, **kwargs)
         self.exceptions = http_exception
         self.countdown = 5
+        self.verbose = 3
 
 
 class MysqlRetry(Retrier):
+    __slots__ = (
+        'host',
+        'port',
+        'user_name',
+        'password',
+        'database',
+        'charset',
+        'dictionary',
+    )
 
     def __init__(self, *args, **kwargs):
         Retrier.__init__(self, *args, **kwargs)
@@ -203,7 +160,6 @@ class MysqlRetry(Retrier):
 
     def __call__(self, *call_args, **call_kwargs):
         func = self.func if self.func else call_args[0]
-        iscoroutinefunction = inspect.iscoroutinefunction(func)
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
@@ -217,17 +173,10 @@ class MysqlRetry(Retrier):
                 ## execute the func
                 try:
                     kwargs['conn'], kwargs['cur'] = self.connect()
-                    if iscoroutinefunction:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
-                        else:
-                            res = loop.run_until_complete(func(*call_args, **call_kwargs)) \
-                                if self.func \
-                                else loop.run_until_complete(func(*args, **kwargs))
-                        # res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
+                    if self.func:
+                        res = self.call_func(func, *call_args, **call_kwargs)
                     else:
-                        res = func(*args, **kwargs)
+                        res = self.call_func(func, *args, **kwargs)
                     kwargs['conn'].commit()
                     kwargs['cur'].close()
                     kwargs['conn'].close()
@@ -294,11 +243,12 @@ class MysqlRetry(Retrier):
 if __name__ == '__main__':
     pass
 
-    # @Retrier(
-    #     exceptions=(KeyError,),
-    #     verbose=3
-    # )
-    # # @Retrier
+    # # @Retrier(
+    # #     exceptions=(KeyError,),
+    # #     verbose=3,
+    # #     countdown=3,
+    # # )
+    # @Retrier
     # def test1(*args, **kwargs):
     #     print("Starting test")
     #     print(locals())
@@ -316,19 +266,20 @@ if __name__ == '__main__':
     # test2(1, 2, a=3, b=4)
 
     # from aiohttp.client_exceptions import ServerDisconnectedError
-    #
     # # @RequestRetry(
     # #     countdown=2
     # # )
     # @RequestRetry
-    # async def test3(*args, **kwargs):
+    # # async def test3(*args, **kwargs):
+    # #     print("Starting test")
+    # #     print(locals())
+    # #     # raise ServerDisconnectedError
+    # def test3(*args, **kwargs):
     #     print("Starting test")
     #     print(locals())
-    #     # raise ServerDisconnectedError
-    #
-    #
+    #     raise ServerDisconnectedError
     # test3(1, 2, a=3, b=4)
 
-    with Retrier(exceptions=(KeyError,), ) as arya:
-        print("Starting test")
-        raise KeyError
+    # with Retrier(exceptions=(KeyError,), ) as arya:
+    #     print("Starting test")
+    #     raise KeyError
