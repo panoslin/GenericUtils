@@ -5,8 +5,6 @@
 
 
 import traceback
-import inspect
-import asyncio
 import functools
 import time
 from GenericUtils.base.base_decorator import BaseDecorator
@@ -16,6 +14,7 @@ from GenericUtils.utils.exception import (
 )
 from GenericUtils import utils_config
 import mysql.connector
+from functools import partial
 
 """
 verbose:
@@ -72,8 +71,10 @@ class Retrier(BaseDecorator):
         :param retry: how many times to retry
         :param countdown: retry interval, measure by second
         """
-        super().__init__()
-        self.func = func
+        super().__init__(
+            func=func
+        )
+        functools.update_wrapper(self, func)
         self.exceptions = exceptions
         self.exception_return = exception_return
         self.other_exception_return = other_exception_return
@@ -81,10 +82,10 @@ class Retrier(BaseDecorator):
         self.countdown = countdown
         self.verbose = verbose
 
-    def __call__(self, *call_args, **call_kwargs):
+    def __call__(self, func, instance, *call_args, **call_kwargs):
         func = self.func if self.func else call_args[0]
 
-        @functools.wraps(func)
+        # @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
             for retry_num in range(self.retry):
 
@@ -123,16 +124,31 @@ class Retrier(BaseDecorator):
 
         return wrapped_function() if self.func else wrapped_function
 
+    def __get__(self, instance, owner):
+        return partial(
+            self.__call__,
+            partial(self.func, instance),
+            instance
+        )
 
 class RequestRetry(Retrier):
     __slots__ = ()
 
     def __init__(self, *args, **kwargs):
-        Retrier.__init__(self, *args, **kwargs)
+        super().__init__(
+            *args,
+            **kwargs
+        )
         self.exceptions = http_exception
         self.countdown = 5
         self.verbose = 3
 
+    def __get__(self, instance, owner):
+        return partial(
+            self.__call__,
+            partial(self.func, instance),
+            instance
+        )
 
 class MysqlRetry(Retrier):
     __slots__ = (
@@ -158,7 +174,7 @@ class MysqlRetry(Retrier):
         self.charset = kwargs.get("charset") if "charset" in kwargs else "utf8"
         self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True
 
-    def __call__(self, *call_args, **call_kwargs):
+    def __call__(self, func, instance, *call_args, **call_kwargs):
         func = self.func if self.func else call_args[0]
 
         @functools.wraps(func)
