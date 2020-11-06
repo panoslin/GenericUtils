@@ -50,11 +50,11 @@ def check_argument(func):
     :return:
     """
     def wrapper(*args, **kwargs):
-        if isinstance(args[0], Retrier) and hasattr(args[1], '__call__') and len(args) == 2:
+        if issubclass(args[0].__class__, BaseDecorator) and hasattr(args[1], '__call__') and len(args) == 2:
             ## decorate a class function
             args[0].func = args[1]
             return args[0]
-        elif isinstance(args[0], Retrier) and hasattr(args[1], '__call__'):
+        elif issubclass(args[0].__class__, BaseDecorator) and hasattr(args[1], '__call__'):
             ## decorate a class function
             return func(args[0], args[1], args[2], *args[3:], **kwargs)
         else:
