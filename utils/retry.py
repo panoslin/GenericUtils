@@ -11,7 +11,6 @@ from GenericUtils.utils.exception import (
 from GenericUtils.base.base_decorator import BaseDecorator
 from GenericUtils import utils_config
 import mysql.connector
-from functools import partial
 import functools
 import time
 import traceback
@@ -43,9 +42,8 @@ def log(level, funcname, benchmark, exception):
 
 def check_argument(func):
     def wrapper(*args, **kwargs):
-        print("check_argument", locals())
         if isinstance(args[0], Retrier) and hasattr(args[1], '__call__') and len(args) == 2:
-            ## decorate a class function ## todo: issue
+            ## decorate a class function
             args[0].func = args[1]
             return args[0]
         elif isinstance(args[0], Retrier) and hasattr(args[1], '__call__'):
@@ -413,43 +411,39 @@ if __name__ == '__main__':
     pass
     import asyncio
 
-    # @Retrier(
-    #     exceptions=(KeyError,),
-    #     verbose=3,
-    #     countdown=3
-    # )
-    # # @Retrier
+    @Retrier(
+        exceptions=(KeyError,),
+        verbose=3,
+        countdown=3
+    )
+    # @Retrier
     # async def test1(*args, **kwargs):
-    # # def test1(*args, **kwargs):
-    #     print("Starting test")
-    #     print(locals())
-    #     raise KeyError
+    def test1(*args, **kwargs):
+        print("Starting test")
+        print(locals())
+        raise KeyError
 
     # test1(1, 2, 5, a=3, b=4)
-    # test1(1, a=3, b=4)
     # asyncio.run(test1(1, 2, 3, a=3, b=4))
-    # asyncio.run(test1(1, a=3, b=4))
 
     class A:
         target = 123
 
-        @Retrier(
-            exceptions=(KeyError,),
-            verbose=3,
-            countdown=3,
-        )
-        # @Retrier
-        # def test2(self, *args, **kwargs):
-        async def test2(self, *args, **kwargs):
+        # @Retrier(
+        #     exceptions=(KeyError,),
+        #     verbose=3,
+        #     countdown=3,
+        # )
+        @Retrier
+        def test2(self, *args, **kwargs):
+        # async def test2(self, *args, **kwargs):
             print("Starting test")
             print(locals())
             raise KeyError
 
     aa = A()
-    # aa.test2(1, 2, 5, a=3, b=4)
-    # aa.test2(1, a=3, b=4)
-    asyncio.run(aa.test2(1, 2, 3, a=3, b=4))
-    # asyncio.run(aa.test2(1, a=3, b=4))
+    aa.test2(1, 2, 5, a=3, b=4)
+    # asyncio.run(aa.test2(1, 2, 3, a=3, b=4))
 
 
 
