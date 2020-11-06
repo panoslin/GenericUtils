@@ -59,11 +59,18 @@ class BaseDecorator(metaclass=ABCMeta):
         :param owner: owner argument is the owner class
         :return:
         """
-        return partial(
-            self.__call__,
-            partial(self.func, instance),
-            instance
-        )
+
+        if self.func:
+            partial_func = functools.partial(self.func, instance)
+            partial_func.__name__ = self.func.__name__
+            self.func = partial_func
+            return functools.partial(
+                self.__call__,
+                partial_func,
+                instance
+            )
+        else:
+            return self
 
     def call_func(self, func, *args, **kwargs):
         iscoroutinefunction = self.is_coroutine_funciton(obj=func)
