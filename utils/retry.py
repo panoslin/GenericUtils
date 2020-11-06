@@ -41,6 +41,14 @@ def log(level, funcname, benchmark, exception):
 
 
 def check_argument(func):
+    """
+    Decorate __call__ function in the class decorator
+    prep the argument right for differerent condition:
+    1. decorator with/without argument
+    2. decorate function/class function (which will call __get__ before __call__)
+    :param func:
+    :return:
+    """
     def wrapper(*args, **kwargs):
         if isinstance(args[0], Retrier) and hasattr(args[1], '__call__') and len(args) == 2:
             ## decorate a class function
@@ -58,6 +66,14 @@ def check_argument(func):
 
 
 class Retrier(BaseDecorator):
+    """
+    A universal decorator providing retrying feature
+
+    Suppoorting:
+    1. decorator with/without argument
+    2. decorate function/instance's function (which will call __get__ before __call__)
+    3. decrate async/sync function
+    """
     __slots__ = (
         'func',
         'exceptions',
@@ -100,6 +116,15 @@ class Retrier(BaseDecorator):
 
     @check_argument
     def __call__(self, func, instance, *call_args, **call_kwargs):
+        """
+        If you inherit this class(Retrier) and need the universal feature,
+        try not to forget the @check_argument decorator
+        :param func:
+        :param instance:
+        :param call_args:
+        :param call_kwargs:
+        :return:
+        """
 
         func = self.func if self.func else call_args[0]
         iscoroutinefunction = self.is_coroutine_funciton(obj=func)
@@ -109,7 +134,7 @@ class Retrier(BaseDecorator):
         async def wrapped_async(*args, **kwargs):
             args, kwargs = (call_args, call_kwargs) if self.func else (args, kwargs)
             return await self.retry_async(
-                func=func,
+                func,
                 *args,
                 **kwargs
             )
@@ -119,7 +144,7 @@ class Retrier(BaseDecorator):
         def wrapped_sync(*args, **kwargs):
             args, kwargs = (call_args, call_kwargs) if self.func else (args, kwargs)
             return self.retry_sync(
-                func=func,
+                func,
                 *args,
                 **kwargs
             )
@@ -242,6 +267,7 @@ class MysqlRetry(Retrier):
         self.charset = kwargs.get("charset") if "charset" in kwargs else "utf8"
         self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True
 
+    @check_argument
     def __call__(self, func, instance, *call_args, **call_kwargs):
         func = self.func if self.func else call_args[0]
 
@@ -328,34 +354,32 @@ if __name__ == '__main__':
     pass
     import asyncio
 
-
-    # @Retrier(
-    #     exceptions=(KeyError,),
-    #     verbose=3,
-    #     countdown=3
-    # )
-    @Retrier
+    # # @Retrier(
+    # #     exceptions=(KeyError,),
+    # #     verbose=3,
+    # #     countdown=3
+    # # )
+    # @Retrier
     # async def test1(*args, **kwargs):
-    def test1(*args, **kwargs):
-        print("Starting test")
-        print(locals())
-        raise KeyError
+    # # def test1(*args, **kwargs):
+    #     print("Starting test")
+    #     print(locals())
+    #     raise KeyError
 
-
-    test1(1, 2, 5, a=3, b=4)
+    # test1(1, 2, 5, a=3, b=4)
     # asyncio.run(test1(1, 2, 3, a=3, b=4))
 
     # class A:
     #     target = 123
     #
-    #     # @Retrier(
-    #     #     exceptions=(KeyError,),
-    #     #     verbose=3,
-    #     #     countdown=3,
-    #     # )
-    #     @Retrier
-    #     def test2(self, *args, **kwargs):
-    #     # async def test2(self, *args, **kwargs):
+    #     @Retrier(
+    #         exceptions=(KeyError,),
+    #         verbose=3,
+    #         countdown=3,
+    #     )
+    #     # @Retrier
+    #     # def test2(self, *args, **kwargs):
+    #     async def test2(self, *args, **kwargs):
     #         print("Starting test")
     #         print(locals())
     #         raise KeyError
