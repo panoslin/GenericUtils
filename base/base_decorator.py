@@ -13,10 +13,12 @@ import asyncio
 import functools
 from functools import partial
 
+
 class BaseDecorator(metaclass=ABCMeta):
     __slots__ = (
         'func',
     )
+
     def __init__(self, func=None):
         self.func = func
 
@@ -63,15 +65,33 @@ class BaseDecorator(metaclass=ABCMeta):
             instance
         )
 
-    @staticmethod
-    def call_func(func, *args, **kwargs):
-        iscoroutinefunction = inspect.iscoroutinefunction(func)
+    def call_func(self, func, *args, **kwargs):
+        iscoroutinefunction = self.is_coroutine_funciton(obj=func)
         if iscoroutinefunction:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
-            else:
-                res = loop.run_until_complete(func(*args, **kwargs))
+            res = self.call_async(func, *args, **kwargs)
         else:
-            res = func(*args, **kwargs)
+            res = self.call_sync(func, *args, **kwargs)
         return res
+
+    @staticmethod
+    def call_async(func, *args, **kwargs):
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            res = asyncio.ensure_future(func(*args, **kwargs), loop=loop)
+        else:
+            res = loop.run_until_complete(func(*args, **kwargs))
+        return res
+
+    @staticmethod
+    def call_sync(func, *args, **kwargs):
+        res = func(*args, **kwargs)
+        return res
+
+    @staticmethod
+    def is_coroutine_funciton(obj):
+        if isinstance(obj, functools.partial):
+            while isinstance(obj, functools.partial):
+                obj = obj.func
+            return inspect.iscoroutinefunction(obj)
+        else:
+            return inspect.iscoroutinefunction(obj)
