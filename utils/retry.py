@@ -101,186 +101,103 @@ class Retrier(BaseDecorator):
     @check_argument
     def __call__(self, func, instance, *call_args, **call_kwargs):
 
-        if self.func:
-            ## decorator with no argument
-            func = self.func
-            iscoroutinefunction = self.is_coroutine_funciton(obj=func)
+        func = self.func if self.func else call_args[0]
+        iscoroutinefunction = self.is_coroutine_funciton(obj=func)
 
-            ## decorate async function
-            @functools.wraps(func)
-            async def wrapped_async(*args, **kwargs):
-                # self.pre_val = self.pre()
-                # self.result = await func(*args, *kwargs)
-                # self.post()
-                # return self.result
-                for retry_num in range(self.retry):
+        ## decorate async function
+        @functools.wraps(func)
+        async def wrapped_async(*args, **kwargs):
+            args, kwargs = (call_args, call_kwargs) if self.func else (args, kwargs)
+            return await self.retry_async(
+                func=func,
+                *args,
+                **kwargs
+            )
 
-                    ## execute countdown
-                    if retry_num > 0:
-                        print(f"Encounter Exception Retrying in {self.countdown} seconds")
-                        await asyncio.sleep(self.countdown)
-
-                    ## execute the func
-                    try:
-                        args, kwargs = call_args, call_kwargs
-                        res = await func(*args, **kwargs)
-                        return res
-                    except self.exceptions as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["ALL"],
-                            exception=e
-                        )
-                        continue
-                    except Exception as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["NO exceptions"],
-                            exception=e
-                        )
-                        return self.other_exception_return
-                else:
-                    ## end of retry
-                    print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
-                    return self.exception_return
-
-            ## decorate sync function
-            @functools.wraps(func)
-            def wrapped_sync(*args, **kwargs):
-                for retry_num in range(self.retry):
-
-                    ## execute countdown
-                    if retry_num > 0:
-                        print(f"Encounter Exception Retrying in {self.countdown} seconds")
-                        time.sleep(self.countdown)
-
-                    ## execute the func
-                    try:
-                        args, kwargs = (call_args, call_kwargs)
-                        res = self.call_sync(
-                            func,
-                            *args,
-                            **kwargs
-                        )
-                        return res
-                    except self.exceptions as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["ALL"],
-                            exception=e
-                        )
-                        continue
-                    except Exception as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["NO exceptions"],
-                            exception=e
-                        )
-                        return self.other_exception_return
-                else:
-                    ## end of retry
-                    print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
-                    return self.exception_return
-        else:
-            ## decorator with argument
-            func = call_args[0]
-            iscoroutinefunction = self.is_coroutine_funciton(obj=func)
-
-            ## decorate async function
-            @functools.wraps(func)
-            async def wrapped_async(*args, **kwargs):
-                for retry_num in range(self.retry):
-
-                    ## execute countdown
-                    if retry_num > 0:
-                        print(f"Encounter Exception Retrying in {self.countdown} seconds")
-                        await asyncio.sleep(self.countdown)
-
-                    ## execute the func
-                    try:
-                        res = await func(*args, **kwargs)
-                        return res
-                    except self.exceptions as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["ALL"],
-                            exception=e
-                        )
-                        continue
-                    except Exception as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["NO exceptions"],
-                            exception=e
-                        )
-                        return self.other_exception_return
-                else:
-                    ## end of retry
-                    print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
-                    return self.exception_return
-
-            ## decorate sync function
-            @functools.wraps(func)
-            def wrapped_sync(*args, **kwargs):
-                for retry_num in range(self.retry):
-
-                    ## execute countdown
-                    if retry_num > 0:
-                        print(f"Encounter Exception Retrying in {self.countdown} seconds")
-                        time.sleep(self.countdown)
-
-                    ## execute the func
-                    try:
-                        res = self.call_sync(
-                            func,
-                            *args,
-                            **kwargs
-                        )
-                        return res
-                    except self.exceptions as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["ALL"],
-                            exception=e
-                        )
-                        continue
-                    except Exception as e:
-                        log(
-                            level=self.verbose,
-                            funcname=func.__name__,
-                            benchmark=LOG_LEVEL["NO exceptions"],
-                            exception=e
-                        )
-                        return self.other_exception_return
-                else:
-                    ## end of retry
-                    print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
-                    return self.exception_return
+        ## decorate sync function
+        @functools.wraps(func)
+        def wrapped_sync(*args, **kwargs):
+            args, kwargs = (call_args, call_kwargs) if self.func else (args, kwargs)
+            return self.retry_sync(
+                func=func,
+                *args,
+                **kwargs
+            )
 
         if iscoroutinefunction:
             return wrapped_async() if self.func else wrapped_async
         else:
             return wrapped_sync() if self.func else wrapped_sync
 
-    def __get__(self, instance, owner):
-        if self.func:
-            partial_func = functools.partial(self.func, instance)
-            partial_func.__name__ = self.func.__name__
-            self.func = partial_func
-            return functools.partial(
-                self.__call__,
-                partial_func,
-                instance
-            )
+    async def retry_async(self, func, *args, **kwargs):
+        for retry_num in range(self.retry):
+
+            ## execute countdown
+            if retry_num > 0:
+                print(f"Encounter Exception Retrying in {self.countdown} seconds")
+                await asyncio.sleep(self.countdown)
+
+            ## execute the func
+            try:
+                res = await func(*args, **kwargs)
+                return res
+            except self.exceptions as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["ALL"],
+                    exception=e
+                )
+                continue
+            except Exception as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["NO exceptions"],
+                    exception=e
+                )
+                return self.other_exception_return
         else:
-            return self
+            ## end of retry
+            print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
+            return self.exception_return
+
+    def retry_sync(self, func, *args, **kwargs):
+        for retry_num in range(self.retry):
+
+            ## execute countdown
+            if retry_num > 0:
+                print(f"Encounter Exception Retrying in {self.countdown} seconds")
+                time.sleep(self.countdown)
+
+            ## execute the func
+            try:
+                res = self.call_sync(
+                    func,
+                    *args,
+                    **kwargs
+                )
+                return res
+            except self.exceptions as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["ALL"],
+                    exception=e
+                )
+                continue
+            except Exception as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["NO exceptions"],
+                    exception=e
+                )
+                return self.other_exception_return
+        else:
+            ## end of retry
+            print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
+            return self.exception_return
 
 
 class RequestRetry(Retrier):
@@ -411,41 +328,41 @@ if __name__ == '__main__':
     pass
     import asyncio
 
-    @Retrier(
-        exceptions=(KeyError,),
-        verbose=3,
-        countdown=3
-    )
-    # @Retrier
+
+    # @Retrier(
+    #     exceptions=(KeyError,),
+    #     verbose=3,
+    #     countdown=3
+    # )
+    @Retrier
     # async def test1(*args, **kwargs):
     def test1(*args, **kwargs):
         print("Starting test")
         print(locals())
         raise KeyError
 
-    # test1(1, 2, 5, a=3, b=4)
+
+    test1(1, 2, 5, a=3, b=4)
     # asyncio.run(test1(1, 2, 3, a=3, b=4))
 
-    class A:
-        target = 123
+    # class A:
+    #     target = 123
+    #
+    #     # @Retrier(
+    #     #     exceptions=(KeyError,),
+    #     #     verbose=3,
+    #     #     countdown=3,
+    #     # )
+    #     @Retrier
+    #     def test2(self, *args, **kwargs):
+    #     # async def test2(self, *args, **kwargs):
+    #         print("Starting test")
+    #         print(locals())
+    #         raise KeyError
 
-        # @Retrier(
-        #     exceptions=(KeyError,),
-        #     verbose=3,
-        #     countdown=3,
-        # )
-        @Retrier
-        def test2(self, *args, **kwargs):
-        # async def test2(self, *args, **kwargs):
-            print("Starting test")
-            print(locals())
-            raise KeyError
-
-    aa = A()
-    aa.test2(1, 2, 5, a=3, b=4)
+    # aa = A()
+    # aa.test2(1, 2, 5, a=3, b=4)
     # asyncio.run(aa.test2(1, 2, 3, a=3, b=4))
-
-
 
     # from aiohttp.client_exceptions import ServerDisconnectedError
     # # @RequestRetry(
