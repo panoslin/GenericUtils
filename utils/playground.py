@@ -98,7 +98,7 @@ class Retrier(BaseDecorator):
         if self.func:
             ## decorator with no argument
             func = self.func
-            iscoroutinefunction = inspect.iscoroutinefunction(func)
+            iscoroutinefunction = self.is_coroutine_funciton(obj=func)
 
             ## decorate async function
             @functools.wraps(func)
@@ -182,7 +182,7 @@ class Retrier(BaseDecorator):
         else:
             ## decorator with argument
             func = call_args[0]
-            iscoroutinefunction = inspect.iscoroutinefunction(func)
+            iscoroutinefunction = self.is_coroutine_funciton(obj=func)
 
             ## decorate async function
             @functools.wraps(func)
@@ -303,12 +303,12 @@ if __name__ == '__main__':
     class A:
         target = 123
 
-        # @Retrier(
-        #     exceptions=(KeyError,),
-        #     verbose=3,
-        #     countdown=3,
-        # )
-        @Retrier
+        @Retrier(
+            exceptions=(KeyError,),
+            verbose=3,
+            countdown=3,
+        )
+        # @Retrier
         # def test2(self, *args, **kwargs):
         async def test2(self, *args, **kwargs):
             print("Starting test")
