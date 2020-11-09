@@ -11,7 +11,6 @@ from abc import (
 import inspect
 import asyncio
 import functools
-from functools import partial
 
 
 class BaseDecorator(metaclass=ABCMeta):
@@ -60,15 +59,22 @@ class BaseDecorator(metaclass=ABCMeta):
         :return:
         """
 
-        if self.func:
-            partial_func = functools.partial(self.func, instance)
-            partial_func.__name__ = self.func.__name__
-            self.func = partial_func
-            return functools.partial(
-                self.__call__,
-                partial_func,
-                instance
-            )
+        if self.func and instance:
+            if isinstance(self.func, functools.partial) and self.func.args[0] is instance:
+                return functools.partial(
+                    self.__call__,
+                    self.func,
+                    instance
+                )
+            else:
+                partial_func = functools.partial(self.func, instance)
+                partial_func.__name__ = self.func.__name__
+                self.func = partial_func
+                return functools.partial(
+                    self.__call__,
+                    partial_func,
+                    instance
+                )
         else:
             return self
 
