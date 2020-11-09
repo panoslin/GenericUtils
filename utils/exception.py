@@ -4,18 +4,32 @@
 # IDE: PyCharm
 
 
-from aiohttp.client_exceptions import (ServerConnectionError,
-                                       ClientOSError,
-                                       ClientConnectorCertificateError,
-                                       ClientPayloadError,
-                                       ClientConnectorError
-                                       )
-from requests.exceptions import (
-    ConnectionError,
-    Timeout,
-)
-from mysql.connector.errors import (OperationalError,
-                                    InterfaceError)
+try:
+    from aiohttp.client_exceptions import (ServerConnectionError,
+                                           ClientOSError,
+                                           ClientConnectorCertificateError,
+                                           ClientPayloadError,
+                                           ClientConnectorError
+                                           )
+except ModuleNotFoundError:
+    pass
+
+try:
+    from requests.exceptions import (
+        ConnectionError,
+        Timeout,
+    )
+except ModuleNotFoundError:
+    pass
+
+try:
+    from mysql.connector.errors import (
+        OperationalError,
+        InterfaceError
+    )
+except ModuleNotFoundError:
+    pass
+
 import asyncio
 
 http_exception = (

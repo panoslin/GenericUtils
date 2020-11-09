@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 # Created by panos on 9/11/19
 # IDE: PyCharm
-
-import redis
+try:
+    import redis
+except ModuleNotFoundError:
+    pass
 from GenericUtils import utils_config
 
 
