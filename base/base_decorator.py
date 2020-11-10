@@ -60,7 +60,8 @@ class BaseDecorator(metaclass=ABCMeta):
         """
 
         if self.func and instance:
-            if isinstance(self.func, functools.partial) and self.func.args[0] is instance:
+            # if isinstance(self.func, functools.partial) and self.func.args[0] is instance:
+            if isinstance(self.func, functools.partial): ## todo: how to indentify a wrapper with another?
                 return functools.partial(
                     self.__call__,
                     self.func,
