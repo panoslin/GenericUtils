@@ -49,12 +49,13 @@ def check_argument(func):
     :param func:
     :return:
     """
+
     def wrapper(*args, **kwargs):
-        if issubclass(args[0].__class__, BaseDecorator) and hasattr(args[1], '__call__') and len(args) == 2:
+        if len(args) == 2 and issubclass(args[0].__class__, BaseDecorator) and hasattr(args[1], '__call__'):
             ## decorate a class function
             args[0].func = args[1]
             return args[0]
-        elif issubclass(args[0].__class__, BaseDecorator) and hasattr(args[1], '__call__'):
+        elif len(args) >= 2 and issubclass(args[0].__class__, BaseDecorator) and hasattr(args[1], '__call__'):
             ## decorate a class function
             return func(args[0], args[1], args[2], *args[3:], **kwargs)
         else:
@@ -255,10 +256,17 @@ class MysqlRetry(Retrier):
     )
 
     def __init__(self, *args, **kwargs):
-        Retrier.__init__(self, *args, **kwargs)
-        self.exceptions = mysql_exception
-        self.countdown = 30
-
+        kwargs = {
+            **{
+                "countdown": 30,
+            },
+            **kwargs
+        }
+        super().__init__(
+            *args,
+            **kwargs
+        )
+        self.exceptions = http_exception
         self.host = kwargs.get("host") if "host" in kwargs else utils_config.host
         self.port = kwargs.get("port") if "port" in kwargs else utils_config.port
         self.user_name = kwargs.get("user_name") if "user_name" in kwargs else utils_config.user_name
@@ -267,60 +275,99 @@ class MysqlRetry(Retrier):
         self.charset = kwargs.get("charset") if "charset" in kwargs else "utf8"
         self.dictionary = kwargs.get("dictionary") if "dictionary" in kwargs else True
 
-    @check_argument
-    def __call__(self, func, instance, *call_args, **call_kwargs):
-        func = self.func if self.func else call_args[0]
+    async def retry_async(self, func, *args, **kwargs):
+        for retry_num in range(self.retry):
 
-        @functools.wraps(func)
-        def wrapped_function(*args, **kwargs):
-            for retry_num in range(self.retry):
+            ## execute countdown
+            if retry_num > 0:
+                print(f"Encounter Exception Retrying in {self.countdown} seconds")
+                await asyncio.sleep(self.countdown)
 
-                ## execute countdown
-                if retry_num > 0:
-                    print(f"Encounter Exception Retrying in {self.countdown} seconds")
-                    time.sleep(self.countdown)
-
-                ## execute the func
-                try:
-                    kwargs['conn'], kwargs['cur'] = self.connect()
-                    if self.func:
-                        res = self.call_func(func, *call_args, **call_kwargs)
-                    else:
-                        res = self.call_func(func, *args, **kwargs)
-                    kwargs['conn'].commit()
+            ## execute the func
+            try:
+                kwargs['conn'], kwargs['cur'] = self.connect()
+                res = await func(*args, **kwargs)
+                kwargs['conn'].commit()
+                kwargs['cur'].close()
+                kwargs['conn'].close()
+                return res
+            except self.exceptions as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["ALL"],
+                    exception=e
+                )
+                if 'conn' in kwargs:
+                    kwargs['conn'].rollback()
                     kwargs['cur'].close()
                     kwargs['conn'].close()
-                    return res
-                except self.exceptions as e:
-                    log(
-                        level=self.verbose,
-                        funcname=func.__name__,
-                        benchmark=LOG_LEVEL["ALL"],
-                        exception=e
-                    )
-                    if 'conn' in kwargs:
-                        kwargs['conn'].rollback()
-                        kwargs['cur'].close()
-                        kwargs['conn'].close()
-                    continue
-                except Exception as e:
-                    log(
-                        level=self.verbose,
-                        funcname=func.__name__,
-                        benchmark=LOG_LEVEL["NO exceptions"],
-                        exception=e
-                    )
-                    if 'conn' in kwargs:
-                        kwargs['conn'].rollback()
-                        kwargs['cur'].close()
-                        kwargs['conn'].close()
-                    return self.other_exception_return
-            else:
-                ## end of retry
-                print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
-                return self.exception_return
+                continue
+            except Exception as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["NO exceptions"],
+                    exception=e
+                )
+                if 'conn' in kwargs:
+                    kwargs['conn'].rollback()
+                    kwargs['cur'].close()
+                    kwargs['conn'].close()
+                return self.other_exception_return
+        else:
+            ## end of retry
+            print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
+            return self.exception_return
 
-        return wrapped_function() if self.func else wrapped_function
+    def retry_sync(self, func, *args, **kwargs):
+        for retry_num in range(self.retry):
+
+            ## execute countdown
+            if retry_num > 0:
+                print(f"Encounter Exception Retrying in {self.countdown} seconds")
+                time.sleep(self.countdown)
+
+            ## execute the func
+            try:
+                kwargs['conn'], kwargs['cur'] = self.connect()
+                res = self.call_sync(
+                    func,
+                    *args,
+                    **kwargs
+                )
+                kwargs['conn'].commit()
+                kwargs['cur'].close()
+                kwargs['conn'].close()
+                return res
+            except self.exceptions as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["ALL"],
+                    exception=e
+                )
+                if 'conn' in kwargs:
+                    kwargs['conn'].rollback()
+                    kwargs['cur'].close()
+                    kwargs['conn'].close()
+                continue
+            except Exception as e:
+                log(
+                    level=self.verbose,
+                    funcname=func.__name__,
+                    benchmark=LOG_LEVEL["NO exceptions"],
+                    exception=e
+                )
+                if 'conn' in kwargs:
+                    kwargs['conn'].rollback()
+                    kwargs['cur'].close()
+                    kwargs['conn'].close()
+                return self.other_exception_return
+        else:
+            ## end of retry
+            print(f"RUN OUT OF CHANCES: while operating func {func.__name__}")
+            return self.exception_return
 
     def connect(self):
         # Construct MySQL connect
@@ -353,6 +400,7 @@ class MysqlRetry(Retrier):
 if __name__ == '__main__':
     pass
     import asyncio
+
 
     # # @Retrier(
     # #     exceptions=(KeyError,),
@@ -402,3 +450,53 @@ if __name__ == '__main__':
     #     print(locals())
     #     raise ServerDisconnectedError
     # test3(1, 2, a=3, b=4)
+
+    # @MysqlRetry(
+    #     host='127.0.0.1',
+    #     port=3306,
+    #     user_name='root',
+    #     password='root',
+    #     database='test_database'
+    # )
+    # def test1(*args, **kwargs):
+    # # async def test1(*args, **kwargs):
+    #     print(locals())
+    #     cur, conn = kwargs['cur'], kwargs['conn']
+    #     cur.execute(
+    #         operation='''
+    #             SELECT * FROM `TABLE`;
+    #         '''
+    #     )
+    #     result = cur.fetchall()
+    #     return result
+
+
+    # print(test1(1, 2, 3, a=3, b=4))
+    # print(asyncio.run(test1(1, 2, 3, a=3, b=4)))
+
+
+    class A:
+        target = 123
+
+        @MysqlRetry(
+            host='127.0.0.1',
+            port=3306,
+            user_name='root',
+            password='root',
+            database='test_database'
+        )
+        # def test2(self, *args, **kwargs):
+        async def test2(self, *args, **kwargs):
+            print(locals())
+            cur, conn = kwargs['cur'], kwargs['conn']
+            cur.execute(
+                operation='''
+                    SELECT * FROM `TABLE`;
+                '''
+            )
+            result = cur.fetchall()
+            return result
+
+    aa = A()
+    # print(aa.test2(1, 2, 5, a=3, b=4))
+    print(asyncio.run(aa.test2(1, 2, 3, a=3, b=4)))
